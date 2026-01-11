@@ -1,4 +1,5 @@
         # we learn itertools module
+        
 import itertools    
 # Example: Using itertools to create a Cartesian product of two lists
 list1 = [1, 2]  
