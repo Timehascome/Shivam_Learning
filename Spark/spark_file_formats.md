@@ -419,3 +419,13 @@ df.write.mode("overwrite").option("header", "true").csv(f"{path_output}/overwrit
 df.write.mode("overwrite").option("header", "true").option("compression","gzip").partitionBy("city").csv(f"{path_output}/overwrite")
 >>> df.repartition(4).write.mode("overwrite").option("header", "true").csv(f"{path_output}/overwrite")
 >>> df.coalesce(1).write.mode("overwrite").option("header", "true").csv(f"{path_output}/overwrite")
+
+**read csv realworld**
+df_csv = spark.read \
+    .option("header", "true") \
+    .option("inferSchema", "true") \
+    .option("sep", ",") \
+    .option("quote", '"') \
+    .option("escape", '"') \
+    .option("mode", "PERMISSIVE") \
+    .csv("s3://raw-bucket/sales_csv/")
