@@ -120,14 +120,15 @@ schema = StructType([
 raw = (spark.readStream
        .schema(schema)
        .option("maxFilesPerTrigger", 1)
-       .json("data/in"))
+       .option("multiLine", "true")
+       .json(r"C:\Users\399sh\Downloads\Learning\Spark\data_in"))
 
 events = raw.withColumn("event_time", to_timestamp("event_time"))
 
 q = (events.writeStream
      .format("console")
      .outputMode("append")
-     .option("checkpointLocation", "data/chk/file_ingest")
+     .option("checkpointLocation", r"C:\Users\399sh\Downloads\Learning\Spark\data_chk\file_ingest")
      .start())
 q.awaitTermination()
 
@@ -135,3 +136,58 @@ Concepts you learn:
 schema is mandatory for file streaming
 checkpointing
 maxFilesPerTrigger
+
+**Lab3** : Aggregations + windows
+           Windowed aggregation
+
+from pyspark.sql.functions import window
+
+agg = (events
+       .withWatermark("event_time", "10 minutes")
+       .groupBy(window("event_time", "5 minutes"), col("action"))
+       .count())
+
+q = (agg.writeStream
+     .format("console")
+     .outputMode("update")
+     .option("truncate","false")
+     .option("checkpointLocation", r"C:\Users\399sh\Downloads\Learning\Spark\data_chk\file_ingest")
+     .start())
+
+q.awaitTermination()
+
+
+**Lab4** : Stateful ops: dedup + exactly-once-ish behavior
+           Deduplicate events with watermark
+##Assume each event has event_id.
+deduped = (events
+           .withWatermark("event_time", "15 minutes")
+           .dropDuplicates(["event_id"]))
+q = (deduped.writeStream
+     .format("parquet")
+     .option("path", "data/out/deduped")
+     .option("checkpointLocation", "data/chk/dedup")
+     .outputMode("append")
+     .start())
+q.awaitTermination()
+#You can replay same input file and see duplicates not reappear (within watermark boundary).
+
+**Lab 5: Enrichment join**
+dim = spark.read.parquet("data/dim/users")  # static
+enriched = events.join(dim, on="user_id", how="left")
+
+q = (enriched.writeStream
+     .format("console")
+     .outputMode("append")
+     .option("checkpointLocation", "data/chk/enrich")
+     .start())
+q.awaitTermination()
+
+Concepts you learn:
+stream-static join is allowed
+broadcast behavior (often)
+schema evolution issues you’ll face
+✅ Completion criteria:
+You can change dim data and understand you must restart query to pick it up (unless you build refresh logic).
+
+**Next kakfa/kinesis as source what changes and how data needs to be cast to string..**
