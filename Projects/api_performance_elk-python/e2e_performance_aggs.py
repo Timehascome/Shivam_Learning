@@ -77,6 +77,7 @@ def main():
             #print(_index)
         else:
             logger.info("Channel does not exist")
+            
 
         if channel == "sgmb":
             appId = "SG_MB"
@@ -95,4 +96,5 @@ def main():
         logger.error(str(traceback.format_exc()))
 if __name__ == "__main__":
     main()    
-        
+
+
