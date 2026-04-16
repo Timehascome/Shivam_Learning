@@ -1,0 +1,36 @@
+2025-11-22 16:15:38,154 - e2e_performance - INFO- Started running aggregation with for serviceSat Nov 22 16:15:38 2025
+2025-11-22 16:27:34,033 - e2e_performance - INFO- Started running aggregation with for serviceSat Nov 22 16:27:34 2025
+2025-11-22 16:27:34,039 - e2e_performance - ERROR- Traceback (most recent call last):
+  File "C:\Users\399sh\Desktop\git\Shivam_Learning\Projects\api_performance_elk-python\e2e_performance_aggs.py", line 55, in main
+    range_df , min_fields_df, percentile_df = aggregate_buckets(channel, base_query)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: cannot unpack non-iterable NoneType object
+
+2025-11-22 16:48:02,283 - e2e_performance - INFO- Started running aggregation with for serviceSat Nov 22 16:48:02 2025
+2025-11-22 16:54:20,590 - e2e_performance - INFO- Started running aggregation with for serviceSat Nov 22 16:54:20 2025
+2025-11-22 16:59:56,862 - e2e_performance - INFO- Started running aggregation with for serviceSat Nov 22 16:59:56 2025
+2025-11-22 16:59:56,889 - e2e_performance - INFO- completed aggregation for service atSat Nov 22 16:59:56 2025
+2025-11-22 17:08:19,143 - e2e_performance - INFO- Channel does not exist
+2025-11-22 17:10:16,378 - e2e_performance - INFO- Channel does not exist
+2025-11-22 17:10:25,720 - e2e_performance - INFO- Channel does not exist
+2025-11-22 17:12:04,795 - e2e_performance - INFO- Channel does not exist
+2025-11-22 17:12:04,796 - e2e_performance - ERROR- Traceback (most recent call last):
+  File "C:\Users\399sh\Desktop\git\Shivam_Learning\Projects\api_performance_elk-python\e2e_performance_aggs.py", line 83, in main
+    base_query = performance_query(channel, appId)
+                                            ^^^^^
+UnboundLocalError: cannot access local variable 'appId' where it is not associated with a value
+
+2025-11-22 17:12:59,547 - e2e_performance - INFO- Channel does not exist
+2025-11-22 17:12:59,548 - e2e_performance - ERROR- Traceback (most recent call last):
+  File "C:\Users\399sh\Desktop\git\Shivam_Learning\Projects\api_performance_elk-python\e2e_performance_aggs.py", line 83, in main
+    base_query = performance_query(channel, appId)
+                                            ^^^^^
+UnboundLocalError: cannot access local variable 'appId' where it is not associated with a value
+
+2025-11-22 17:13:18,214 - e2e_performance - INFO- Channel does not exist
+2025-11-22 17:13:18,215 - e2e_performance - ERROR- Traceback (most recent call last):
+  File "C:\Users\399sh\Desktop\git\Shivam_Learning\Projects\api_performance_elk-python\e2e_performance_aggs.py", line 83, in main
+    base_query = performance_query(channel, appId)
+                                            ^^^^^
+UnboundLocalError: cannot access local variable 'appId' where it is not associated with a value
+

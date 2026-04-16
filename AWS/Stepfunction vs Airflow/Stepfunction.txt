@@ -1,0 +1,291 @@
+AWS Step Functions
+
+====================
+1) THEORY PART
+====================
+
+What is AWS Step Functions?
+- AWS Step Functions is a serverless workflow orchestration service.
+- It lets you coordinate multiple AWS services (Lambda, ECS, Batch, Glue, SNS, SQS, DynamoDB, etc.) as a state machine.
+- A workflow is defined in Amazon States Language (JSON-based).
+
+Core Concepts
+- State Machine: The full workflow definition.
+- State: A single step in the workflow.
+- Execution: One run of a state machine.
+- Input/Output: JSON data passed between states.
+- Transition: Movement from one state to another.
+
+Common State Types
+- Task: Performs work (e.g., invoke Lambda, call AWS SDK API).
+- Choice: Branching logic (if/else based on input).
+- Pass: Passes/transforms data without doing work.
+- Wait: Delays execution until time/duration.
+- Parallel: Runs multiple branches simultaneously.
+- Map: Iterates over a list (supports distributed mode for large-scale).
+- Succeed: Marks successful end.
+- Fail: Marks failed end.
+
+Workflow Types
+- Standard Workflows:
+  - Long-running (up to 1 year), durable, exactly-once state transitions.
+  - Best for critical business workflows and auditability.
+- Express Workflows:
+  - High-throughput, short-duration, cost-effective for event processing.
+  - At-least-once model, optimized for high volume and low latency.
+
+Error Handling & Reliability
+- Retry: Automatic retries with backoff settings.
+- Catch: Fallback path on failure.
+- TimeoutSeconds / HeartbeatSeconds: Control long-running tasks.
+- Dead-letter patterns can be implemented with SNS/SQS.
+
+Data Handling
+- InputPath: Select part of input.
+- Parameters: Build task input payload.
+- ResultPath: Merge task result into state data.
+- OutputPath: Select final output data.
+- JSONPath/JSONata features enable transformation and filtering.
+
+Security & Monitoring
+- IAM roles control which services/state machines can be invoked.
+- CloudWatch Logs for execution logs.
+- CloudWatch Metrics and X-Ray for monitoring/tracing.
+- Execution history in console helps debugging step-by-step.
+
+When to Use Step Functions
+- Multi-step business processes.
+- Orchestration across many AWS services.
+- Need retries, branching, human-readable workflow, observability.
+
+When Not to Use (or use carefully)
+- Ultra-simple single-step jobs (Lambda alone may be enough).
+- Very complex DAG scheduling across many time-based pipelines (Airflow may fit better).
+- Extremely latency-sensitive synchronous paths where every millisecond matters.
+
+Step Functions vs Airflow (quick view)
+- Step Functions: Managed AWS-native orchestration, event-driven app/workflow orchestration.
+- Airflow: DAG scheduler, strong for data engineering ETL pipelines and dependency scheduling.
+
+
+====================
+2) HANDS-ON PART
+====================
+
+Goal
+Build an order-processing workflow:
+1. Validate order (Lambda)
+2. Check inventory (Lambda)
+3. Choice:
+   - In stock -> Process payment (Lambda) -> Success
+   - Out of stock -> Notify customer (SNS) -> Fail/End
+
+Prerequisites
+- AWS account + IAM permissions for Step Functions, Lambda, SNS, CloudWatch.
+- Basic familiarity with Lambda and IAM roles.
+
+Step A: Create Lambda Functions
+Create these Lambda functions (Python/Node.js any runtime):
+- validateOrder
+- checkInventory
+- processPayment
+
+Python code (paste each into its respective Lambda function):
+
+1) validateOrder (Python)
+```python
+import json
+
+
+def lambda_handler(event, context):
+    required_fields = ["orderId", "itemId", "qty", "amount"]
+    missing = [f for f in required_fields if f not in event]
+
+    if missing:
+        raise ValueError(f"Missing required fields: {', '.join(missing)}")
+
+    if int(event["qty"]) <= 0:
+        raise ValueError("qty must be greater than 0")
+
+    if float(event["amount"]) <= 0:
+        raise ValueError("amount must be greater than 0")
+
+    # Return original payload with validation marker
+    return {
+        **event,
+        "isValid": True
+    }
+```
+
+2) checkInventory (Python)
+```python
+import random
+
+
+def lambda_handler(event, context):
+    # Demo logic:
+    # if qty <= 5 -> in stock, else out of stock
+    # You can replace this with DynamoDB/ERP lookup in real projects.
+    qty = int(event.get("qty", 0))
+    in_stock = qty <= 5
+
+    return {
+        **event,
+        "inStock": in_stock
+    }
+```
+
+3) processPayment (Python)
+```python
+from datetime import datetime, timezone
+
+
+def lambda_handler(event, context):
+    # Demo payment success path
+    # Replace with actual payment gateway/API call.
+    return {
+        **event,
+        "paymentStatus": "SUCCESS",
+        "paymentId": f"PAY-{event.get('orderId', 'UNKNOWN')}",
+        "paidAt": datetime.now(timezone.utc).isoformat()
+    }
+```
+
+Expected sample I/O:
+- Input:
+  {
+    "orderId": "A1001",
+    "itemId": "I201",
+    "qty": 2,
+    "amount": 499
+  }
+
+- checkInventory output example:
+  {
+    "inStock": true
+  }
+
+Step B: Create SNS Topic
+- Create topic: order-notifications
+- Add email subscription (optional for demo).
+
+Step C: Create State Machine (Console)
+1. Go to AWS Step Functions -> Create state machine.
+2. Choose "Write workflow in code".
+3. Select type: Standard (recommended for learning/debugging).
+4. Paste definition (replace region/account/lambda ARNs):
+
+{
+  "Comment": "Order processing workflow",
+  "StartAt": "ValidateOrder",
+  "States": {
+    "ValidateOrder": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:REGION:ACCOUNT_ID:function:validateOrder",
+        "Payload.$": "$"
+      },
+      "OutputPath": "$.Payload",
+      "Next": "CheckInventory"
+    },
+    "CheckInventory": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:REGION:ACCOUNT_ID:function:checkInventory",
+        "Payload.$": "$"
+      },
+      "OutputPath": "$.Payload",
+      "Next": "InventoryChoice",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.TooManyRequestsException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "NotifyFailure"
+        }
+      ]
+    },
+    "InventoryChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.inStock",
+          "BooleanEquals": true,
+          "Next": "ProcessPayment"
+        }
+      ],
+      "Default": "NotifyFailure"
+    },
+    "ProcessPayment": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:REGION:ACCOUNT_ID:function:processPayment",
+        "Payload.$": "$"
+      },
+      "OutputPath": "$.Payload",
+      "End": true
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "arn:aws:sns:REGION:ACCOUNT_ID:order-notifications",
+        "Message.$": "States.Format('Order {} failed or out of stock', $.orderId)",
+        "Subject": "Order Processing Failed"
+      },
+      "Next": "FailState"
+    },
+    "FailState": {
+      "Type": "Fail",
+      "Error": "OrderFailed",
+      "Cause": "Inventory unavailable or downstream error"
+    }
+  }
+}
+
+Step D: Configure Permissions
+- Use/create execution role for Step Functions.
+- Grant permissions to invoke Lambda functions and publish to SNS.
+
+Step E: Test Execution
+1. Click Start execution.
+2. Sample input:
+   {
+     "orderId": "A1001",
+     "itemId": "I201",
+     "qty": 2,
+     "amount": 499
+   }
+3. Run once with inStock=true (expect success path).
+4. Run once with inStock=false (expect SNS + fail path).
+
+Step F: Observe & Debug
+- Open execution graph to inspect each state.
+- Check input/output at every state.
+- Check CloudWatch logs for Lambda + state machine.
+
+Step G: Production Best Practices
+- Add idempotency for payment calls.
+- Use explicit timeouts for each Task.
+- Add structured logging and correlation IDs.
+- Use DLQ/alarm strategy for repeated failures.
+- Version control state machine JSON via IaC (CloudFormation/CDK/Terraform).
+
+Mini CLI Pointers (optional)
+- Create state machine: aws stepfunctions create-state-machine
+- Start execution: aws stepfunctions start-execution
+- View execution history: aws stepfunctions get-execution-history
+
+Summary
+- Theory: Step Functions is AWS-native serverless orchestration via state machines.
+- Hands-on: Build workflow with Task + Choice + Retry/Catch + SNS notification.
+- Key value: Reliable, observable, maintainable multi-service orchestration.

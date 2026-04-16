@@ -1,0 +1,22 @@
+from pyspark.sql.functions import col, explode_outer
+json_sample= {
+   "order_id": 1,
+   "customer": {
+     "id": 101,
+     "name": "John"
+   },
+   "items": [
+     {"item_id": "A1", "quantity": 2},
+     {"item_id": "B1", "quantity": 1}
+   ]
+}
+df = spark.createDataFrame([json_sample])
+df.show(truncate=False)
+flat_df = (df.withColumn("item", explode_outer("items")).select(
+                  "order_id",
+                  col("customer")["id"].alias("customer_id"),
+                  col("customer")["name"].alias("customer_name"),
+                  col("item.item_id").alias("item_id"),
+                  col("item.quantity").alias("quantity"))
+                     )
+flat_df.show(truncate=False)

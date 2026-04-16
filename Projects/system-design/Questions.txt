@@ -1,0 +1,10 @@
+Batch ingestion pipeline design
+Streaming pipeline design
+CDC pipeline design
+Medallion architecture design
+Large-scale join pipeline
+Deduplication and late-arrival handling
+Aggregation / KPI pipeline
+Data quality + retry + idempotency design
+Partitioning and file-size optimization
+PySpark performance tuning design

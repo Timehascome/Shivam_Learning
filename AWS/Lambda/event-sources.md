@@ -1,0 +1,3 @@
+1) ALB functionally provides an HTTP endpoint that triggers Lambda, much like API Gateway (Synchronous Invocation)
+2) Amazon S3 (Asynchronous Invocation)
+3) Amazon Kinesis Data Streams (Poll-based/Event Source Mapping) and Direct Invocation (Programmatic) and many  more....
